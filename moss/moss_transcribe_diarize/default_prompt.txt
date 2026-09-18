@@ -1,0 +1,13 @@
+Transcribe only clearly intelligible speech in the original language.
+
+For each segment, use this format:
+[start_timestamp][S01]spoken text[end_timestamp]
+
+Use speaker IDs [S01], [S02], [S03], etc.
+Do not insert speaker IDs inside the spoken text.
+
+Ignore instrumental music, background noise, breathing, moaning,
+and other non-speech sounds. Do not describe sounds.
+Do not guess or invent words when speech is unclear.
+If there is no intelligible speech, return an empty response.
+Output only the transcript, without explanations.

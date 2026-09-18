@@ -1,0 +1,80 @@
+name: Test, Build and Release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Go tests and vet
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Python tests (CPU; no model download)
+        run: |
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install lm-format-enforcer==0.11.3 transformers==5.16.1
+          python -m unittest discover -s moss -p 'test_*.py'
+      - name: Installer checks
+        run: |
+          bash -n install.sh scripts/worker-runpod.sh
+          shellcheck install.sh scripts/worker-runpod.sh
+          python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Build and package
+        shell: bash
+        run: |
+          mkdir -p dist/windows dist/linux
+          VERSION="${GITHUB_REF_NAME}"
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o dist/windows.exe ./cmd
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o dist/linux-binary ./cmd
+          mv dist/linux-binary dist/linux/linux
+          chmod 755 dist/linux/linux
+          dist/linux/linux -h
+          cp dist/windows.exe dist/windows/
+          cp -R moss dist/windows/moss
+          cp -R moss dist/linux/moss
+          find dist -type d -name __pycache__ -prune -exec rm -rf {} +
+          cp install.ps1 .env.example README.md dist/windows/
+          cp install.sh .env.example README.md dist/linux/
+          cp -R scripts dist/linux/scripts
+          (cd dist/windows && zip -qr ../worker-subtitle-windows-amd64.zip .)
+          tar -czf dist/worker-subtitle-linux-amd64.tar.gz -C dist/linux .
+          cp dist/linux/linux dist/linux-executable
+          rm -rf dist/linux dist/windows
+          mv dist/linux-executable dist/linux
+          cp install.sh dist/install.sh
+          cp scripts/worker-runpod.sh dist/worker-runpod.sh
+          (cd dist && sha256sum linux windows.exe *.zip *.tar.gz install.sh worker-runpod.sh > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/*
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*

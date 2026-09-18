@@ -1,0 +1,42 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+.build
+
+# Temp / download
+/download/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+
+# Node
+node_modules/
+
+install.txt
+__pycache__/
+.venv/
+/models/
+runs/
+
+.cache/
+dist/
+*.pyc
+work/
+log/
+.env.*
+!.env.example
