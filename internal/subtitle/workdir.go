@@ -10,11 +10,14 @@ import (
 
 var safeFileID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+// Keep persistent work directories portable between Linux and Windows.
+var reservedFileID = regexp.MustCompile(`(?i)^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$`)
+
 func createWorkDir(root, fileID string) (string, error) {
 	if fileID == "" {
 		return os.MkdirTemp(root, "manual-"+time.Now().Format("20060102-150405")+"-")
 	}
-	if !safeFileID.MatchString(fileID) || !filepath.IsLocal(fileID) {
+	if !safeFileID.MatchString(fileID) || !filepath.IsLocal(fileID) || reservedFileID.MatchString(fileID) {
 		return "", fmt.Errorf("invalid file ID for work directory")
 	}
 	dir := filepath.Join(root, fileID)

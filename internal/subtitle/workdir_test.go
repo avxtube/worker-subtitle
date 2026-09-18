@@ -24,7 +24,7 @@ func TestWorkDirectoryRetainsPreviousAttempt(t *testing.T) {
 	if err != nil || string(data) != "review me" {
 		t.Fatal("previous result changed")
 	}
-	for _, id := range []string{"../outside", `a\b`, "a/b", "CON"} {
+	for _, id := range []string{"../outside", `a\b`, "a/b", "CON", "nul", "COM1", "lpt9"} {
 		if _, err := createWorkDir(root, id); err == nil {
 			t.Fatalf("accepted %q", id)
 		}
