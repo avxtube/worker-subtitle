@@ -18,6 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Installer checks
+        run: |
+          bash -n install.sh scripts/worker-runpod.sh
+          shellcheck install.sh scripts/worker-runpod.sh
+          python -m unittest discover -s scripts -p 'test_*.py'
       - name: Go tests and vet
         run: |
           go test ./...
@@ -27,11 +32,6 @@ jobs:
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install lm-format-enforcer==0.11.3 transformers==5.16.1
           python -m unittest discover -s moss -p 'test_*.py'
-      - name: Installer checks
-        run: |
-          bash -n install.sh scripts/worker-runpod.sh
-          shellcheck install.sh scripts/worker-runpod.sh
-          python -m unittest discover -s scripts -p 'test_*.py'
       - name: Build and package
         shell: bash
         run: |

@@ -41,7 +41,8 @@ done
 [[ "$MODE" == systemd || "$MODE" == runpod ]] || fail 'invalid mode'
 [[ "$VERSION" == latest || "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || fail 'invalid release version'
 [[ "$APP_DIR" =~ ^/[A-Za-z0-9._/-]+$ && "$APP_DIR" != / && "$APP_DIR" != *'/../'* && "$APP_DIR" != */.. ]] || fail 'use an absolute installation path without spaces or ..'
-[[ "$PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$PORT > 0 && 10#$PORT <= 65535)) || fail 'invalid port'
+[[ "$PORT" =~ ^[0-9]{1,5}$ ]] || fail 'invalid port'
+((10#$PORT > 0 && 10#$PORT <= 65535)) || fail 'invalid port'
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || fail 'Linux x86_64 is required'
 if [[ "$MODE" == systemd ]]; then
     [[ "$(id -u)" == 0 && -d /run/systemd/system ]] || fail 'systemd mode requires root and running systemd; use --mode runpod inside containers'
@@ -59,7 +60,9 @@ for tool in curl ffmpeg ffprobe python3 sha256sum tar; do
     command -v "$tool" >/dev/null || fail "missing dependency: $tool"
 done
 python3 -c 'import sys; assert (3,10) <= sys.version_info[:2] < (3,14), "Python 3.10-3.13 required"'
-command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null || fail 'NVIDIA GPU/driver unavailable; select a GPU Pod or install the host driver'
+if ! command -v nvidia-smi >/dev/null || ! nvidia-smi >/dev/null; then
+    fail 'NVIDIA GPU/driver unavailable; select a GPU Pod or install the host driver'
+fi
 mkdir -p "$APP_DIR"
 staging="$(mktemp -d "$APP_DIR/.release.XXXXXX")"
 trap 'rm -rf -- "$staging"' EXIT
