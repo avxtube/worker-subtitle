@@ -1,0 +1,43 @@
+วิธีรัน worker-subtitle บน RunPod แบบเบื้องหลัง
+
+1. ตั้ง Environment Variables ใน RunPod:
+   DATABASE_URL=...
+   STORAGE_ENCRYPTION_KEY=...
+   SUBTITLE_VERSION=v0.1.0
+
+2. ดาวน์โหลด launcher รุ่นล่าสุด (รองรับ --background):
+   mkdir -p /workspace/scripts
+   curl -fsSL https://raw.githubusercontent.com/avxtube/worker-subtitle/main/scripts/worker-runpod.sh -o /workspace/scripts/worker-subtitle.sh
+
+3. เริ่มติดตั้งและรันเบื้องหลัง:
+   bash /workspace/scripts/worker-subtitle.sh --background
+
+   ปิด Terminal ได้ งานติดตั้ง/ดาวน์โหลดโมเดล/worker จะยังรันต่อ
+   ข้อความ Started หมายถึง process เริ่มแล้ว ยังต้องรอ MOSS พร้อมก่อนรับงาน
+   ห้ามเปิดอีก instance แบบ foreground ทับระหว่างกำลังรัน
+
+4. ดูสถานะ process:
+   bash /workspace/scripts/worker-subtitle.sh --status
+
+5. ดู log แบบต่อเนื่อง:
+   bash /workspace/scripts/worker-subtitle.sh --logs
+
+   กด Ctrl+C เพื่อเลิกดู log โดย worker ยังทำงานอยู่
+   log: /workspace/avxtube-workers/subtitle/log/worker.log
+   setup log: /workspace/avxtube-workers/subtitle/log/setup.log
+
+6. หยุด worker และ Python ในกลุ่ม process เดียวกัน:
+   bash /workspace/scripts/worker-subtitle.sh --stop
+
+7. เริ่มใหม่หรืออัปเดต binary:
+   bash /workspace/scripts/worker-subtitle.sh --stop
+   bash /workspace/scripts/worker-subtitle.sh --background
+
+   เลือกรุ่นด้วย SUBTITLE_VERSION เช่น v0.1.0 หรือ latest
+   โมเดลและไฟล์งานเดิมยังอยู่
+
+Dashboard: localhost:8888 ภายใน Pod ใช้ SSH tunnel เพื่อเข้าจากคอม
+ตั้ง SUBTITLE_DIR หากต้องการเปลี่ยน root และใช้ค่าเดียวกันทุกคำสั่ง
+โหมดนี้ไม่ใช่ service ที่ restart เมื่อโปรแกรม crash หรือ Pod restart
+หากต้องการเริ่มเมื่อ Pod เปิด ให้ใส่คำสั่ง foreground ใน Pod startup command
+และใช้ /workspace แบบ persistent volume เพื่อเก็บโมเดล/ไฟล์งาน

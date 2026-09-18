@@ -157,3 +157,14 @@ Windows/Linux amd64 cross-builds. A release is published only after those checks
 pass. Assets include standalone `linux` / `windows.exe` (embedded MOSS source),
 platform archives, install scripts and `SHA256SUMS`. CUDA inference still requires
 validation on the deployment GPU; GitHub's CPU runner does not perform it.
+
+### RunPod background mode
+
+Download the launcher from `main` for these options (the v0.1.0 launcher predates
+background support). Run `bash worker-runpod.sh --background` to detach setup and
+the worker from the terminal. Use `--status`, `--logs` and `--stop` to manage it.
+The combined output is saved to `log/worker.log`. Status reports the process,
+not GPU/model readiness. Starting twice will not launch a second managed process.
+`--stop` sends SIGTERM to its process group, including Python. Background mode does
+not restart after a crash or Pod restart; use the foreground launcher as the Pod
+startup command for that. Thai instructions: `scripts/worker-runpod.txt`.
