@@ -5,39 +5,105 @@
    STORAGE_ENCRYPTION_KEY=...
    SUBTITLE_VERSION=v0.1.0
 
-2. ดาวน์โหลด launcher รุ่นล่าสุด (รองรับ --background):
-   mkdir -p /workspace/scripts
-   curl -fsSL https://raw.githubusercontent.com/avxtube/worker-subtitle/main/scripts/worker-runpod.sh -o /workspace/scripts/worker-subtitle.sh
+2. ดาวน์โหลดและเริ่มติดตั้ง/รันเบื้องหลัง (คัดลอกทั้งชุด):
 
-3. เริ่มติดตั้งและรันเบื้องหลัง:
-   bash /workspace/scripts/worker-subtitle.sh --background
+mkdir -p /workspace
+curl -fsSL \
+  https://raw.githubusercontent.com/avxtube/worker-subtitle/main/scripts/worker-runpod.sh \
+  -o /workspace/worker-runpod-ai.sh && {
+  nohup bash /workspace/worker-runpod-ai.sh \
+    </dev/null > /workspace/worker-runpod-ai.log 2>&1 &
+  echo $! > /workspace/worker-runpod-ai.pid
+}
 
    ปิด Terminal ได้ งานติดตั้ง/ดาวน์โหลดโมเดล/worker จะยังรันต่อ
-   ข้อความ Started หมายถึง process เริ่มแล้ว ยังต้องรอ MOSS พร้อมก่อนรับงาน
-   ห้ามเปิดอีก instance แบบ foreground ทับระหว่างกำลังรัน
+   ต้องรอ MOSS พร้อมก่อนรับงาน ไม่ต้องใช้ --background หรือ disown
+   หยุดตัวเดิมก่อนรันซ้ำ
 
-4. ดูสถานะ process:
-   bash /workspace/scripts/worker-subtitle.sh --status
+3. ดูสถานะ process:
+   ps -p "$(cat /workspace/worker-runpod-ai.pid)" -o pid,etime,args
 
-5. ดู log แบบต่อเนื่อง:
-   bash /workspace/scripts/worker-subtitle.sh --logs
+4. ดู log แบบต่อเนื่อง:
+   tail -f /workspace/worker-runpod-ai.log
 
    กด Ctrl+C เพื่อเลิกดู log โดย worker ยังทำงานอยู่
-   log: /workspace/avxtube-workers/subtitle/log/worker.log
+   log: /workspace/worker-runpod.log
+   คำสั่งเริ่มเขียนทับ log นี้ทุกครั้ง ใช้ >> แทน > หากต้องการต่อท้าย
    setup log: /workspace/avxtube-workers/subtitle/log/setup.log
 
-6. หยุด worker และ Python ในกลุ่ม process เดียวกัน:
-   bash /workspace/scripts/worker-subtitle.sh --stop
+5. หยุด worker หลังติดตั้งเสร็จและเริ่มทำงานแล้ว:
+   kill -TERM "$(cat /workspace/worker-runpod-ai.pid)"
 
-7. เริ่มใหม่หรืออัปเดต binary:
-   bash /workspace/scripts/worker-subtitle.sh --stop
-   bash /workspace/scripts/worker-subtitle.sh --background
+   worker จะหยุด MOSS ที่ตัวเองเรียกใช้ด้วย
+   ตรวจ ps ก่อนหยุด เพราะ PID file แบบนี้ไม่ได้ตรวจ PID ที่ถูกนำกลับมาใช้ใหม่
+   ระหว่าง apt/pip ติดตั้ง การหยุด launcher อาจไม่หยุด subprocess ของ installer ทั้งหมด
+
+6. เริ่มใหม่หรืออัปเดต binary:
+   หยุดตัวเดิม รอให้ ps ไม่พบ process แล้วรันข้อ 2 ใหม่
 
    เลือกรุ่นด้วย SUBTITLE_VERSION เช่น v0.1.0 หรือ latest
    โมเดลและไฟล์งานเดิมยังอยู่
 
-Dashboard: localhost:8888 ภายใน Pod ใช้ SSH tunnel เพื่อเข้าจากคอม
+Dashboard: localhost:8889 ภายใน Pod ใช้ SSH tunnel เพื่อเข้าจากคอม
+ใช้ 8889 เพื่อไม่ชนกับ spritesheet (8887) และ Jupyter (8888)
+สำหรับสคริปต์ที่ดาวน์โหลดไว้แล้ว ตั้ง export SUBTITLE_DASHBOARD_PORT=8889 ก่อนเริ่ม worker ใหม่
 ตั้ง SUBTITLE_DIR หากต้องการเปลี่ยน root และใช้ค่าเดียวกันทุกคำสั่ง
 โหมดนี้ไม่ใช่ service ที่ restart เมื่อโปรแกรม crash หรือ Pod restart
-หากต้องการเริ่มเมื่อ Pod เปิด ให้ใส่คำสั่ง foreground ใน Pod startup command
+หากต้องการเริ่มเมื่อ Pod เปิด ให้ใช้ bash /workspace/worker-runpod.sh แบบ foreground ใน Pod startup command
 และใช้ /workspace แบบ persistent volume เพื่อเก็บโมเดล/ไฟล์งาน
+
+============================================================
+เลือก GPU สำหรับ worker-subtitle / MOSS
+============================================================
+
+เครื่องที่ใช้เทียบ: NVIDIA RTX 5070 Ti Laptop 12 GB
+ราคาอ้างอิงจากภาพ RunPod ที่ส่งมา วันที่ 18 กันยายน 2026
+ราคาและเครื่องว่างเปลี่ยนได้ ควรตรวจอีกครั้งก่อนเช่า
+
+1. RTX PRO 4000 — VRAM 24 GB — $0.57/ชั่วโมง
+   เหมาะ: ต้องการตัวเลือกใกล้เคียงหรือดีกว่าเครื่องเดิมในเชิงสเปก
+   เป็นตัวเลือกหลักที่แนะนำสำหรับเริ่มรันระบบนี้
+   ใช้ Blackwell, bandwidth 672 GB/s และมี VRAM เผื่อมากกว่าเครื่องเดิม
+   ยังไม่มี benchmark MOSS บนการ์ดนี้ จึงไม่รับประกันความเร็วเทียบกับเครื่องเดิม
+   ค่า GPU ถ้าเปิด 24 ชั่วโมง: $13.68/วัน
+
+2. RTX 4000 Ada — VRAM 20 GB — $0.28/ชั่วโมง
+   เหมาะ: ทดลองระบบหรือเน้นลดค่าเช่า และยอมรับเวลาประมวลผลที่อาจนานขึ้น
+   ค่าเช่าประมาณครึ่งหนึ่งของ PRO 4000 แต่ bandwidth ต่ำกว่า (360 GB/s)
+   VRAM มากกว่าเครื่องเดิมไม่ได้แปลว่าถอดเสียงเร็วกว่าเครื่องเดิม
+   เป็นตัวเลือกเริ่มต้นแบบประหยัด ความคุ้มต่อไฟล์ต้องวัดจากเวลาจริง
+   ค่า GPU ถ้าเปิด 24 ชั่วโมง: $6.72/วัน
+
+3. RTX 4090 — VRAM 24 GB — $0.74/ชั่วโมง
+   เหมาะ: นำมาทดสอบเมื่อเน้นลดเวลารองาน และมีเครื่องว่างให้เช่า
+   ในภาพยัง unavailable จึงยังเลือกใช้งานทันทีไม่ได้
+   ยังไม่มี benchmark MOSS ของระบบนี้บน 4090 ไม่ควรเดาความเร็วเป็นจำนวนเท่า
+   ต้องทำงานเร็วกว่า PRO 4000 ประมาณ 1.30 เท่า จึงมีค่า GPU ต่อไฟล์เท่ากัน
+   ค่า GPU ถ้าเปิด 24 ชั่วโมง: $17.76/วัน
+
+เลือกแบบไหน:
+- เน้นประหยัดตอนทดลอง: เริ่ม RTX 4000 Ada
+- เน้นตัวเลือกหลักที่มี VRAM เผื่อและสเปกเหมาะกับงาน: เริ่ม RTX PRO 4000
+- เน้นความเร็ว: ทดลอง RTX 4090 เทียบกับ PRO 4000 เมื่อมีเครื่องว่าง
+- งานปัจจุบันส่งเสียงทีละช่วง 180 วินาที การเพิ่ม VRAM อย่างเดียวไม่ได้เพิ่มความเร็วโดยตรง
+
+วัดความคุ้มอย่างไร:
+ใช้ไฟล์เสียงเดียวกัน, prompt เดียวกัน, chunk/token เท่ากัน และ worker รุ่นเดียวกัน
+โหลดโมเดลให้เสร็จก่อนจับเวลาถอดเสียง เพื่อแยกเวลาติดตั้งออกจากความเร็วของ GPU
+เทียบคุณภาพซับและจำนวน retry ด้วย ไม่ใช่ดูเวลาจบอย่างเดียว
+
+ค่า GPU ต่อไฟล์ = ราคา/ชั่วโมง x เวลาประมวลผลเป็นนาที / 60
+ตัวอย่างสมมติ (ไม่ใช่ผล benchmark):
+- 4000 Ada ใช้ 60 นาที: $0.28 ต่อไฟล์
+- PRO 4000 ใช้ 30 นาที: $0.285 ต่อไฟล์
+ดังนั้น PRO 4000 ต้องเร็วกว่า Ada ประมาณ 2.04 เท่า จึงมีค่า GPU ต่อไฟล์เท่ากัน
+ถ้าเร็วกว่าไม่ถึงจุดนี้ Ada ถูกกว่าต่อไฟล์ แต่ PRO 4000 อาจเหมาะเมื่ออยากให้งานเสร็จเร็ว
+สำหรับต้นทุนจริง ต้องรวมเวลาติดตั้ง/โหลดโมเดล/รอคิวที่ยังเช่าเครื่องอยู่
+และค่า storage หรือค่าใช้จ่ายอื่นที่ RunPod เรียกเก็บด้วย
+
+หมายเหตุ: คำแนะนำนี้อิงสเปกและราคาจากภาพ ยังไม่ได้ทดสอบ GPU เหล่านี้บน RunPod จริง
+เริ่มเช่าระยะสั้นเพื่อเทียบไฟล์ตัวอย่างก่อนเปิดใช้งานต่อเนื่อง
+
+แหล่งสเปก NVIDIA:
+RTX PRO 4000: https://www.nvidia.com/en-us/products/workstations/professional-desktop-gpus/rtx-pro-4000/
+RTX 4000 Ada: https://www.nvidia.com/content/dam/en-zz/Solutions/products/workstations/nvidia-rtx-4000-datasheet.pdf

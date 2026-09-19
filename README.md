@@ -131,20 +131,26 @@ Use an Ubuntu GPU Pod with Python 3.10–3.13 and a persistent `/workspace` volu
 Set `DATABASE_URL` and `STORAGE_ENCRYPTION_KEY` in the Pod environment. Then run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/avxtube/worker-subtitle/main/scripts/worker-runpod.sh -o /tmp/subtitle-runpod.sh
-bash /tmp/subtitle-runpod.sh
+mkdir -p /workspace
+curl -fsSL \
+  https://raw.githubusercontent.com/avxtube/worker-subtitle/main/scripts/worker-runpod.sh \
+  -o /workspace/worker-runpod.sh && {
+  nohup bash /workspace/worker-runpod.sh \
+    </dev/null > /workspace/worker-runpod.log 2>&1 &
+  echo $! > /workspace/worker-runpod.pid
+}
 ```
 
-The launcher installs and runs subtitle in the foreground. Configure the Pod to run
-it on startup. `SUBTITLE_VERSION` pins a release; default `latest` downloads the
+The launcher installs and runs subtitle in the background using `nohup`, so it
+continues after the terminal closes. `SUBTITLE_VERSION` pins a release; default `latest` downloads the
 current release on each launch. `SUBTITLE_DIR` defaults to
 `/workspace/avxtube-workers/subtitle`; the binary, Python venv, models, cache, work
 and logs share that directory. Do not run an installer over an active foreground
 worker; stop the worker before upgrading. One instance per directory/GPU is intended.
 
-Dashboard port is **8888** on RunPod to avoid spritesheet's 8887. It remains bound
-to loopback; access it using an SSH tunnel, e.g. `ssh -L 8888:127.0.0.1:8888 ...`,
-then open `http://127.0.0.1:8888`. It is not exposed through a public Pod HTTP port.
+Dashboard port is **8889** on RunPod to avoid spritesheet's 8887 and Jupyter's 8888. It remains bound
+to loopback; access it using an SSH tunnel, e.g. `ssh -L 8889:127.0.0.1:8889 ...`,
+then open `http://127.0.0.1:8889`. It is not exposed through a public Pod HTTP port.
 Set `SUBTITLE_DASHBOARD_PORT` to change it. Stopping the foreground process sends
 shutdown to MOSS; persistent artifacts survive Pod restarts when the volume persists.
 The platform's existing transcode/spritesheet launcher is unchanged; run this
@@ -158,13 +164,29 @@ pass. Assets include standalone `linux` / `windows.exe` (embedded MOSS source),
 platform archives, install scripts and `SHA256SUMS`. CUDA inference still requires
 validation on the deployment GPU; GitHub's CPU runner does not perform it.
 
-### RunPod background mode
+### RunPod logs and stopping
 
-Download the launcher from `main` for these options (the v0.1.0 launcher predates
-background support). Run `bash worker-runpod.sh --background` to detach setup and
-the worker from the terminal. Use `--status`, `--logs` and `--stop` to manage it.
-The combined output is saved to `log/worker.log`. Status reports the process,
-not GPU/model readiness. Starting twice will not launch a second managed process.
-`--stop` sends SIGTERM to its process group, including Python. Background mode does
-not restart after a crash or Pod restart; use the foreground launcher as the Pod
-startup command for that. Thai instructions: `scripts/worker-runpod.txt`.
+No `--background` or `disown` is needed with the `nohup` command above.
+View the log or inspect the process:
+
+```bash
+tail -f /workspace/worker-runpod.log
+ps -p "$(cat /workspace/worker-runpod.pid)" -o pid,etime,args
+```
+
+Ctrl+C stops the log viewer only. After installation finishes and the worker is
+running, stop it with:
+
+```bash
+kill -TERM "$(cat /workspace/worker-runpod.pid)"
+```
+
+Check the PID's command before stopping it; this simple PID file does not detect
+PID reuse. The worker shuts down its MOSS process. During OS package installation,
+stopping the launcher may leave installer subprocesses running. Stop the old worker
+and wait for it to exit before rerunning the start command. The command replaces
+`worker-runpod.log` each time; use `>>` instead of `>` to append.
+
+`nohup` does not restart after a crash or Pod restart. For Pod startup automation,
+use `bash /workspace/worker-runpod.sh` in the foreground as the startup command.
+Thai instructions: [`scripts/worker-runpod.txt`](scripts/worker-runpod.txt).

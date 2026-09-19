@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 umask 077
 export SUBTITLE_DIR="${SUBTITLE_DIR:-${WORKER_ROOT:-/workspace/avxtube-workers}/subtitle}"
-export SUBTITLE_DASHBOARD_PORT="${SUBTITLE_DASHBOARD_PORT:-8888}"
+export SUBTITLE_DASHBOARD_PORT="${SUBTITLE_DASHBOARD_PORT:-8889}"
 state="$SUBTITLE_DIR/worker.pid"
 logfile="$SUBTITLE_DIR/log/worker.log"
 start_time() {
@@ -27,7 +27,7 @@ case "${1:-}" in
         echo 'RunPod subtitle: --background | --status | --stop | --logs'
         echo 'Without these options, install and run in the foreground.'
         echo 'Set DATABASE_URL and STORAGE_ENCRYPTION_KEY for a new install.'
-        echo 'Optional: SUBTITLE_VERSION, SUBTITLE_DIR, SUBTITLE_DASHBOARD_PORT (8888).'
+        echo 'Optional: SUBTITLE_VERSION, SUBTITLE_DIR, SUBTITLE_DASHBOARD_PORT (8889).'
         echo 'Installer options follow --background (e.g. --skip-deps).'
         exit 0;;
     --status)
